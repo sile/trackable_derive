@@ -1,4 +1,12 @@
+//! This crate provides `TrackableError` derive macro.
+//!
+//! This crate should not be used directly.
+//! See [trackable] documentation for the usage of `#[derive(TrackableError)]`.
+//!
+//! [trackable]: https://docs.rs/trackable
+#![recursion_limit = "128"]
 extern crate proc_macro;
+extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
 #[macro_use]
@@ -7,9 +15,117 @@ extern crate syn;
 use proc_macro::TokenStream;
 use syn::DeriveInput;
 
-#[proc_macro_derive(TrackableError)]
+#[doc(hidden)]
+#[proc_macro_derive(TrackableError, attributes(trackable))]
 pub fn derive_trackable_error(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
-    let expanded = quote!{};
-    TokenStream::from(expanded)
+    let expanded = impl_trackable_error(&ast);
+    expanded.into()
+}
+
+fn impl_trackable_error(ast: &syn::DeriveInput) -> impl Into<TokenStream> {
+    let error = &ast.ident;
+    let error_kind = get_error_kind(&ast.attrs);
+    quote!{
+        impl ::std::ops::Deref for #error {
+            type Target = ::trackable::error::TrackableError<#error_kind>;
+
+            #[inline]
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+        impl ::std::fmt::Display for #error {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+        impl ::std::error::Error for #error {
+            fn description(&self) -> &str {
+                self.0.description()
+            }
+
+            fn cause(&self) -> Option<&::std::error::Error> {
+                self.0.cause()
+            }
+        }
+        impl ::trackable::Trackable for #error {
+            type Event = ::trackable::Location;
+
+            #[inline]
+            fn history(&self) -> Option<&::trackable::History<Self::Event>> {
+                self.0.history()
+            }
+
+            #[inline]
+            fn history_mut(&mut self) -> Option<&mut ::trackable::History<Self::Event>> {
+                self.0.history_mut()
+            }
+        }
+        impl From<::trackable::error::TrackableError<#error_kind>> for #error {
+            #[inline]
+            fn from(f: ::trackable::error::TrackableError<#error_kind>) -> Self {
+                #error(f)
+            }
+        }
+        impl From<#error> for ::trackable::error::TrackableError<#error_kind> {
+            #[inline]
+            fn from(f: #error) -> Self {
+                f.0
+            }
+        }
+        impl From<#error_kind> for #error {
+            #[inline]
+            fn from(f: #error_kind) -> Self {
+                use ::trackable::error::ErrorKindExt;
+                f.error().into()
+            }
+        }
+    }
+}
+
+fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Ident {
+    use syn::Lit::*;
+    use syn::Meta::*;
+    use syn::MetaNameValue;
+    use syn::NestedMeta::*;
+
+    let mut error_kind = "ErrorKind".to_owned();
+
+    let attrs = attrs
+        .iter()
+        .filter_map(|attr| {
+            let path = &attr.path;
+            match quote!(#path).to_string() == "trackable" {
+                true => Some(
+                    attr.interpret_meta()
+                        .expect(&format!("invalid trackable syntax: {}", quote!(attr))),
+                ),
+                false => None,
+            }
+        }).flat_map(|m| match m {
+            List(l) => l.nested,
+            tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
+        }).map(|m| match m {
+            Meta(m) => m,
+            ref tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
+        });
+    for attr in attrs {
+        match attr {
+            NameValue(MetaNameValue {
+                ref ident,
+                lit: Str(ref value),
+                ..
+            })
+                if ident == "error_kind" =>
+            {
+                error_kind = value.value().to_string();
+            }
+            ref i @ List(..) | ref i @ Word(..) | ref i @ NameValue(..) => {
+                panic!("unsupported option: {}", quote!(#i))
+            }
+        }
+    }
+
+    syn::Ident::new(&error_kind, proc_macro2::Span::call_site())
 }
