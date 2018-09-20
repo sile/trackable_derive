@@ -6,7 +6,6 @@
 //! [trackable]: https://docs.rs/trackable
 #![recursion_limit = "128"]
 extern crate proc_macro;
-extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
 #[macro_use]
@@ -84,7 +83,7 @@ fn impl_trackable_error(ast: &syn::DeriveInput) -> impl Into<TokenStream> {
     }
 }
 
-fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Ident {
+fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Path {
     use syn::Lit::*;
     use syn::Meta::*;
     use syn::MetaNameValue;
@@ -128,5 +127,8 @@ fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Ident {
         }
     }
 
-    syn::Ident::new(&error_kind, proc_macro2::Span::call_site())
+    match syn::parse_str(&error_kind) {
+        Err(e) => panic!("{:?} is not a valid type (parse error: {})", error_kind, e),
+        Ok(path) => path,
+    }
 }
