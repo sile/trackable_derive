@@ -96,32 +96,33 @@ fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Ident {
         .iter()
         .filter_map(|attr| {
             let path = &attr.path;
-            match quote!(#path).to_string() == "trackable" {
-                true => Some(
+            if quote!(#path).to_string() == "trackable" {
+                Some(
                     attr.interpret_meta()
-                        .expect(&format!("invalid trackable syntax: {}", quote!(attr))),
-                ),
-                false => None,
+                        .unwrap_or_else(|| panic!("invalid trackable syntax: {}", quote!(attr))),
+                )
+            } else {
+                None
             }
         }).flat_map(|m| match m {
             List(l) => l.nested,
             tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
         }).map(|m| match m {
             Meta(m) => m,
-            ref tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
+            tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
         });
     for attr in attrs {
-        match attr {
+        match &attr {
             NameValue(MetaNameValue {
-                ref ident,
-                lit: Str(ref value),
+                ident,
+                lit: Str(value),
                 ..
             })
                 if ident == "error_kind" =>
             {
                 error_kind = value.value().to_string();
             }
-            ref i @ List(..) | ref i @ Word(..) | ref i @ NameValue(..) => {
+            i @ List(..) | i @ Word(..) | i @ NameValue(..) => {
                 panic!("unsupported option: {}", quote!(#i))
             }
         }
