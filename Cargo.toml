@@ -1,6 +1,6 @@
 [package]
 name = "trackable_derive"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 description = "Custom derive for `trackable` crate"
 homepage = "https://github.com/sile/trackable_derive"
