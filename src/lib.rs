@@ -40,12 +40,8 @@ fn impl_trackable_error(ast: &syn::DeriveInput) -> impl Into<TokenStream> {
             }
         }
         impl ::std::error::Error for #error {
-            fn description(&self) -> &str {
-                self.0.description()
-            }
-
-            fn cause(&self) -> Option<&::std::error::Error> {
-                self.0.cause()
+            fn source(&self) -> Option<&(::std::error::Error + 'static)> {
+                self.0.source()
             }
         }
         impl ::trackable::Trackable for #error {
