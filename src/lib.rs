@@ -25,7 +25,7 @@ pub fn derive_trackable_error(input: TokenStream) -> TokenStream {
 fn impl_trackable_error(ast: &syn::DeriveInput) -> impl Into<TokenStream> {
     let error = &ast.ident;
     let error_kind = get_error_kind(&ast.attrs);
-    quote!{
+    quote! {
         impl ::std::ops::Deref for #error {
             type Target = ::trackable::error::TrackableError<#error_kind>;
 
@@ -103,10 +103,12 @@ fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Path {
             } else {
                 None
             }
-        }).flat_map(|m| match m {
+        })
+        .flat_map(|m| match m {
             List(l) => l.nested,
             tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
-        }).map(|m| match m {
+        })
+        .map(|m| match m {
             Meta(m) => m,
             tokens => panic!("unsupported syntax: {}", quote!(#tokens).to_string()),
         });
@@ -116,9 +118,7 @@ fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Path {
                 ident,
                 lit: Str(value),
                 ..
-            })
-                if ident == "error_kind" =>
-            {
+            }) if ident == "error_kind" => {
                 error_kind = value.value().to_string();
             }
             i @ List(..) | i @ Word(..) | i @ NameValue(..) => {
