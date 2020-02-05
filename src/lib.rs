@@ -92,10 +92,9 @@ fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Path {
         .filter_map(|attr| {
             let path = &attr.path;
             if quote!(#path).to_string() == "trackable" {
-                Some(
-                    attr.interpret_meta()
-                        .unwrap_or_else(|| panic!("invalid trackable syntax: {}", quote!(attr))),
-                )
+                Some(attr.parse_meta().unwrap_or_else(|e| {
+                    panic!("invalid trackable syntax: {} (error={})", quote!(attr), e)
+                }))
             } else {
                 None
             }
@@ -111,13 +110,16 @@ fn get_error_kind(attrs: &[syn::Attribute]) -> syn::Path {
     for attr in attrs {
         match &attr {
             NameValue(MetaNameValue {
-                ident,
+                path,
                 lit: Str(value),
                 ..
-            }) if ident == "error_kind" => {
+            }) if path
+                .get_ident()
+                .map_or(false, |ident| ident == "error_kind") =>
+            {
                 error_kind = value.value().to_string();
             }
-            i @ List(..) | i @ Word(..) | i @ NameValue(..) => {
+            i @ List(..) | i @ Path(..) | i @ NameValue(..) => {
                 panic!("unsupported option: {}", quote!(#i))
             }
         }
