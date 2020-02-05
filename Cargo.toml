@@ -13,8 +13,8 @@ license = "MIT"
 travis-ci = {repository = "sile/trackable_derive"}
 
 [dependencies]
-quote = "0.6"
-syn = "0.15"
+quote = "1"
+syn = "1"
 
 [dev-dependencies]
 trackable = "0.2"
