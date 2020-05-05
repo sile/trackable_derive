@@ -17,7 +17,7 @@ quote = "1"
 syn = "1"
 
 [dev-dependencies]
-trackable = "0.2"
+trackable = "1"
 
 [lib]
 proc-macro = true
